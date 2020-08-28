@@ -7,9 +7,11 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_types.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl_ros/transforms.h>
 #include <time.h>
 
-#include "CustomMsg.h"
 #include "common.h"
 
 using namespace std;
@@ -21,7 +23,7 @@ struct pointData{
     int i;
 };
 vector<pointData> vector_data;
-livox_ros_driver::CustomMsg livox_cloud;
+sensor_msgs::PointCloud2 tmp_cloud;
 string input_bag_path, output_path;
 int threshold_lidar, data_num;
 
@@ -48,19 +50,20 @@ void loadAndSavePointcloud(int index) {
     }
 
     vector<string> types;
-    types.push_back(string("livox_ros_driver/CustomMsg")); 
+    types.push_back(string("sensor_msgs/PointCloud2")); 
     rosbag::View view(bag, rosbag::TypeQuery(types));
 
     int cloudCount = 0;
     for (const rosbag::MessageInstance& m : view) {
-        livox_cloud = *(m.instantiate<livox_ros_driver::CustomMsg>()); // message type
-
-        for(uint i = 0; i < livox_cloud.point_num; ++i) {
+        tmp_cloud = *(m.instantiate<sensor_msgs::PointCloud2>()); // message type
+        pcl::PointCloud<pcl::PointXYZI> livox_cloud;
+        pcl::fromROSMsg(tmp_cloud, livox_cloud);
+        for(uint i = 0; i < livox_cloud.points.size(); ++i) {
             pointData myPoint;
             myPoint.x = livox_cloud.points[i].x;
             myPoint.y = livox_cloud.points[i].y;
             myPoint.z = livox_cloud.points[i].z;
-            myPoint.i = livox_cloud.points[i].reflectivity;
+            myPoint.i = livox_cloud.points[i].intensity;
 
             vector_data.push_back(myPoint);
         }

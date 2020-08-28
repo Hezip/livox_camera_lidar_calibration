@@ -10,6 +10,11 @@
 #include <string>
 #include <vector>
 
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_ros/transforms.h>
+
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
@@ -20,8 +25,12 @@
 using namespace std;
 using namespace cv;
 
+typedef pcl::PointXYZ PointT;
+typedef pcl::PointCloud<PointT> PointCloudT;
+
 void getColor(int &result_r, int &result_g, int &result_b, float cur_depth);
 void loadPointcloudFromROSBag(const string& bag_path);
+void loadPointcloudFromPCD(const string& pcd_path);
 
 float max_depth = 60;
 float min_depth = 3;
@@ -29,6 +38,7 @@ float min_depth = 3;
 cv::Mat src_img;
 
 vector<livox_ros_driver::CustomMsg> lidar_datas; 
+vector<pcl::PointCloud<pcl::PointXYZ>> lidar_pcd_datas;
 int threshold_lidar;  // number of cloud point on the photo
 string input_bag_path, input_photo_path, output_path, intrinsic_path, extrinsic_path;
 
@@ -53,6 +63,12 @@ void loadPointcloudFromROSBag(const string& bag_path) {
             break;
         }
     }
+}
+
+void loadPointcloudFromPCD(const string& pcd_path) {
+    PointCloudT cloud_in;
+    pcl::io::loadPCDFile<PointT>(pcd_path, cloud_in);
+    lidar_pcd_datas.push_back(cloud_in);
 }
 
 // set the color by distance to the cloud
@@ -136,7 +152,8 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    loadPointcloudFromROSBag(input_bag_path);
+    // loadPointcloudFromROSBag(input_bag_path);
+    loadPointcloudFromPCD(input_bag_path);
 
     vector<float> intrinsic;
     getIntrinsic(intrinsic_path, intrinsic);
@@ -164,11 +181,11 @@ int main(int argc, char **argv) {
     float x, y, z;
     float theoryUV[2] = {0, 0};
     int myCount = 0;
-    for (unsigned int i = 0; i < lidar_datas.size(); ++i) {
-        for (unsigned int j = 0; j < lidar_datas[i].point_num; ++j) {
-            x = lidar_datas[i].points[j].x;
-            y = lidar_datas[i].points[j].y;
-            z = lidar_datas[i].points[j].z;
+    for (unsigned int i = 0; i < lidar_pcd_datas.size(); ++i) {
+        for (unsigned int j = 0; j < lidar_pcd_datas[i].points.size(); ++j) {
+            x = lidar_pcd_datas[i].points[j].x;
+            y = lidar_pcd_datas[i].points[j].y;
+            z = lidar_pcd_datas[i].points[j].z;
 
             getTheoreticalUV(theoryUV, intrinsic, extrinsic, x, y, z);
             int u = floor(theoryUV[0] + 0.5);

@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
 		if (image_count == 1) {
 			image_size.width = imageInput.cols;
 			image_size.height = imageInput.rows;
+			cout << image_size.width << " " << image_size.height << endl;
 		}
 
 		/* 提取角点 */

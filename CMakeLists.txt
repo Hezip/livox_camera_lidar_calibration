@@ -23,6 +23,9 @@ find_package(OpenCV)
 find_package(Threads)
 find_package(Ceres REQUIRED)
 
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
@@ -65,7 +68,7 @@ target_link_libraries(getExt2 ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${CERES_LI
 
 
 add_executable(projectCloud src/projectCloud.cpp src/common.h)
-target_link_libraries(projectCloud ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(projectCloud ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(colorLidar src/color_lidar_display.cpp src/common.h)
 target_link_libraries(colorLidar ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${CERES_LIBRARIES})

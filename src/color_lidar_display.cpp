@@ -16,6 +16,9 @@
 #include <pcl/common/transforms.h>
 #include <pcl/common/transforms.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl_ros/transforms.h>
+
 
 #include <opencv2/opencv.hpp>
 
@@ -24,12 +27,17 @@
 
 using namespace std;
 
+typedef pcl::PointXYZ PointT;
+typedef pcl::PointCloud<PointT> PointCloudT;
+
 void getUV(const cv::Mat &matrinxIn, const cv::Mat &matrix_out, float x, float y, float z, float* UV);
 void getColor(const cv::Mat &matrinxIn, const cv::Mat &matrix_out, float x, float y, float z, int row, int col, const vector<vector<int>> &color_vector, int* RGB);
 void loadPointcloudFromROSBag(const string& bag_path);
+void loadPointcloudFromPCD(const string& pcd_path);
 
 typedef pcl::PointXYZRGB PointType;
 vector<livox_ros_driver::CustomMsg> lidar_datas; 
+vector<pcl::PointCloud<pcl::PointXYZ>> lidar_pcd_datas;
 int threshold_lidar;
 string input_photo_path, input_bag_path, intrinsic_path, extrinsic_path;
 
@@ -54,6 +62,12 @@ void loadPointcloudFromROSBag(const string& bag_path) {
             break;
         }
     }
+}
+
+void loadPointcloudFromPCD(const string& pcd_path) {
+    PointCloudT cloud_in;
+    pcl::io::loadPCDFile<PointT>(pcd_path, cloud_in);
+    lidar_pcd_datas.push_back(cloud_in);
 }
 
 // use extrinsic and intrinsic to get the corresponding U and V
@@ -183,7 +197,8 @@ int main(int argc, char **argv) {
     }
     ROS_INFO("Finish saving the data ");
     
-    loadPointcloudFromROSBag(input_bag_path);
+    // loadPointcloudFromROSBag(input_bag_path);
+    loadPointcloudFromPCD(input_bag_path);
 
     ros::Publisher pub = n.advertise<sensor_msgs::PointCloud2>("color_lidar", 10);
     ros::Rate loop_rate(20); // frequence 20 Hz
@@ -193,16 +208,16 @@ int main(int argc, char **argv) {
     while(n.ok()) {
         ros::spinOnce();
         
-        if(num < lidar_datas.size()) {
+        if(num < lidar_pcd_datas.size()) {
             pcl::PointCloud<PointType>::Ptr cloud(new pcl::PointCloud<PointType>);
             cloud->is_dense = false;
             cloud->height = 1;
-            cloud->width = lidar_datas[num].point_num; // get the point number of lidar data
+            cloud->width = lidar_pcd_datas[num].points.size(); // get the point number of lidar data
             cloud->points.resize(cloud->width);
             for(uint64_t i = 0; i < cloud->points.size() && n.ok(); ++i) {
-                float x = lidar_datas[num].points[i].x;
-                float y = lidar_datas[num].points[i].y;
-                float z = lidar_datas[num].points[i].z;
+                float x = lidar_pcd_datas[num].points[i].x;
+                float y = lidar_pcd_datas[num].points[i].y;
+                float z = lidar_pcd_datas[num].points[i].z;
                 
                 // ignore the invalid point
                 if(x == 0 && y == 0 && z == 0) {  
@@ -227,6 +242,7 @@ int main(int argc, char **argv) {
                 cloud->points[i].b = RGB[2];
 
             }
+            // pcl::io::savePCDFileASCII("/home/he/test.pcd", *cloud);
             // once lidar_datas receive something new, it will transform it into a ROS cloud type
             sensor_msgs::PointCloud2 output;
             pcl::toROSMsg(*cloud, output);

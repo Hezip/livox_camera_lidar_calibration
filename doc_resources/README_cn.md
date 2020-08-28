@@ -1,36 +1,15 @@
-[English document](../README.md)
-
 ## 相机雷达标定文档
 
 本方案提供了一个手动校准Livox雷达和相机之间外参的方法，已经在Mid-40，Horizon和Tele-15上进行了验证。其中包含了计算相机内参，获得标定数据，优化计算外参和雷达相机融合应用相关的代码。本方案中使用了标定板角点作为标定目标物，由于Livox雷达非重复性扫描的特点，点云的密度较大，比较易于找到雷达点云中角点的准确位置。相机雷达的标定和融合也可以得到不错的结果。
 
-以下链接可以下载用来标定内参和外参的一组示例数据，数据都已保存在了程序默认路径下。
+以下链接可以下载用来标定内参和外参的一组示例数据。示例数据放在ws目录下.
 
-[示例数据](https://terra-1-g.djicdn.com/65c028cd298f4669a7f0e40e50ba1131/Download/update/data.zip)
+[示例数据](https://drive.google.com/file/d/1xl3ag66yFU1dUCzc-8rfYaVWs3A9sYrZ/view?usp=sharing)
+
 
 ### 步骤1: 环境配置
 
-(以下标定基于Ubuntu 64-bit 16.04环境)
-
-#### 1.1 安装环境和驱动
-安装ROS环境，安装 [Livox SDK](https://github.com/Livox-SDK/Livox-SDK) 和 [livox_ros_driver](https://github.com/Livox-SDK/Livox-SDK-ROS) 如已安装可以跳过此步骤。
-
-```
-# 安装Livox_SDK
-git clone https://github.com/Livox-SDK/Livox-SDK.git
-cd Livox-SDK
-sudo ./third_party/apr/apr_build.sh
-cd build && cmake ..
-make
-sudo make install
-
-# 安装livox_ros_driver
-git clone https://github.com/Livox-SDK/livox_ros_driver.git ws_livox/src
-cd ws_livox
-catkin_make
-```
-
-#### 1.2 安装依赖
+#### 1.1 安装依赖
 
 如已安装可以跳过此步骤。
 
@@ -40,7 +19,7 @@ catkin_make
 
 - [Ceres-solver 安装](http://ceres-solver.org/)
 
-#### 1.3 下载源码，编译准备
+#### 1.2 下载源码，编译准备
 
 ```
 git clone https://github.com/Livox-SDK/livox_camera_lidar_calibration.git
@@ -50,15 +29,13 @@ source devel/setup.bash
 ```
 
 
-#### 1.4 程序节点概括
+#### 1.3 程序节点概括
 
 此项目包括如下节点:
 
 - cameraCalib - 标定相机内参
 
 - pcdTransfer - 将雷达点云rosbag转换成PCD文件
-
-- cornerPhoto - 获得照片角点
 
 - getExt1 - 计算外参节点１，只优化外参
 
@@ -78,31 +55,9 @@ source devel/setup.bash
 
 <div align=center><img src="chess_board.png" style="zoom: 150%;" /></div>
 
-安装MATLAB来计算外参，或者使用cameraCalib节点
+#### 2.2 cameraCalib标定
 
-调整参数
-
-保证选取相机是针孔成像模型，并先调整相机本身的基本参数(比如焦距或者照片尺寸等)。案例中使用了[Livox Horizon激光雷达](https://www.livoxtech.com/horizon) 和 [海康工业相机MV-CE060-10UC](https://www.hikrobotics.com/vision/visioninfo.htm?type=42&oid=2627) ，如下图所示。为了保证照片和雷达点云的视野是一致的，需要根据FOV对照片像素有一定的修改， 因为Horizon的FOV(视场角)是81.7(水平) x 25.1(垂直)，所以案例中的照片使用的是1520(宽度) x 568(高度)像素。
-
-<div align=center><img src="lidar_camera.png" style="zoom: 50%;" /></div>
-
-#### 2.2 MATLAB标定
-
-这个方法需要安装MATLAB来计算结果，如果不想使用MATLAB可以参考2.3条目。
-
-要准备20张以上的照片数据，各个角度和位置都要覆盖，拍摄的时候不要距离太近(3米左右)，如下图所示。
-
-<div align=center><img src="intrinsic_calib.png"></div>
-
-使用MATLAB中的cameraCalibrator工具，经过计算后可以得到如下结果，我们需要第1,2和11个数据
-
-<div align=center><img src="matlab_result.png" style="zoom:150%;" /></div>
-
-#### 2.3 cameraCalib标定
-
-(如已使用2.2 MATLAB标定可以跳过此步骤)
-
-按照2.2中的方法获得照片数据后，配置cameraCalib.launch中对应的路径和参数，默认是把照片数据放在data/camera/photos下，然后在data/camera/in.txt中写入所有需要使用的照片名称，如下图所示
+获得照片数据后，配置cameraCalib.launch中对应的路径和参数，默认是把照片数据放在data/photo/cali下，然后在data/camera/in.txt中写入所有需要使用的照片名称，如下图所示
 
 <div align=center><img src="camera.png"  /></div>
 
@@ -119,7 +74,7 @@ roslaunch camera_lidar_calibration cameraCalib.launch
 1. 一个3x3的内参矩阵(IntrinsicMatrix) [[注 1]](#注解)
 2. ５个畸变纠正参数 k1, k2, p1, p2, k3
 
-###  步骤3:  标定准备和数据采集
+###  步骤3:  相机外参标定
 
 #### 3.1 标定场景准备
 
@@ -131,33 +86,13 @@ roslaunch camera_lidar_calibration cameraCalib.launch
 
 #### 3.2 连接雷达
 
-检查标定板角点是否在点云中，输入点云可视化的命令查看点云
-
-```
-roslaunch livox_ros_driver livox_lidar_rviz.launch
-```
-
-需要录制rosbag时输入另一个命令
-
-```
-roslaunch livox_ros_driver livox_lidar_msg.launch
-```
-
-注意根据链接 https://github.com/Livox-SDK/livox_ros_driver 确认保存的rosbag数据格式是customMsg，后续程序中处理rosbag是对应的“livox custom msg format”格式。
-
 #### 3.3 连接相机
-
-本方案中使用海康相机的上位机MVS打开相机，检查获取照片的质量，并检查标定板角点是否在照片中。
 
 #### 3.4 采集照片和点云数据
 
 1. 拍摄照片
 
 2. 运行指令录制点云
-
-```
-rosbag record /livox/lidar
-```
 
 3. 每个位置保存一张照片和10s左右的rosbag即可。
 
@@ -215,7 +150,7 @@ pcl_viewer -use_point_picking xx.pcd
 
 #### 5.1 参数设置
 
-外参计算节点会读取data/corner_photo.txt和data/corner_lidar.txt中的标定数据来计算外参，数据需要保存成特定的格式才能被外参计算节点正确读取。参考以下格式，每行数据只有超过10个字母程序才会将其读取为计算的参数，比如下图用来编号的１２３４，lidar0和0.bmp这些标题不会被读取为计算参数。程序读到空行就会停止读取参数开始计算，所以保存时不要空行。
+外参计算节点会读取data/corner_photo.txt和data/corner_lidar.txt中的标定数据来计算外参，数据需要保存成特定的格式才能被外参计算节点正确读取。参考以下格式，每行数据只有超过10个字母程序才会将其读取为计算的参数，比如下图用来编号的１２３４，lidar0和0.bmp这些标题不会被读取为计算参数。程序读到 **空行** 就会停止读取参数开始计算，所以保存时不要空行。
 
 <div align=center><img src="lidar_photo.png" style="zoom:80%;" /></div>
 
@@ -223,7 +158,7 @@ pcl_viewer -use_point_picking xx.pcd
 
 #### 5.2 外参计算getExt1节点
 
-计算前在getExt1.launch文件中配置好外参初值 [[注 8]](#注解)，输入指令开始计算外参
+计算前在getExt1.launch文件中**配置好外参初值** [[注 8]](#注解)!!!，输入指令开始计算外参
 
 ```
 roslaunch camera_lidar_calibration getExt1.launch
@@ -304,3 +239,5 @@ roslaunch camera_lidar_calibration colorLidar.launch
 9. 如果迭代结束cost还是比较大的量级(比如10的4次方), 那可能是程序中初值设置的有问题，得到的只是一个局部最优解，那么需要重新设置初值计算。
 
 10. 点云投影到照片是通过内外参矩阵将雷达的点云投影到照片对应的位置，点云的颜色会根据距离从近到远显示从蓝到红；点云的着色是通过点云的xyz和得到的内外参矩阵算出对应的相机像素坐标，获取到这个像素的RGB信息后再赋给点云显示出来，这样雷达点云可以显示真实的颜色。
+
+11. 计算的结果为camera到lidar点云的transfrom T_camera_lidar

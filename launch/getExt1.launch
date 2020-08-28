@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
   
-    <rosparam param="init_value">  [0.0, -1.0, 0.0, 0.0,
-                                    0.0, 0.0, -1.0, 0.0,
-                                    1.0, 0.0, 0.0,  0.0] </rosparam>  <!-- init value of roatation matrix(3*3 on the left) and the translation(3*1 vector on the right) -->
+    <rosparam param="init_value">  [-0.035, -0.999, -0.001, 1.085,
+                                    -0.505, 0.019, -0.863, 3.284,
+                                    0.862, -0.030, -0.506,  0.837] </rosparam>  <!-- init value of roatation matrix(3*3 on the left) and the translation(3*1 vector on the right) -->
 
     <param name="intrinsic_path"    value="$(find camera_lidar_calibration)/../../data/parameters/intrinsic.txt" />  <!-- intrinsic file -->
     <param name="extrinsic_path"    value="$(find camera_lidar_calibration)/../../data/parameters/extrinsic.txt" />  <!-- extrinsic file -->
